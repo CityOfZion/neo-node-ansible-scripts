@@ -1,0 +1,56 @@
+#
+# Upgrade a notification server with the new version defined in group_vars
+# The new notification server must be compatible with the old chain format, else needs manual upgrade.
+#
+---
+- hosts:
+  - node_neo_notif_mainnet
+  gather_facts: false
+  become: yes
+
+  tasks:
+  - name: Stop neonode service
+    systemd:
+      name: neonode
+      state: stopped
+
+  - name: Delete previous neo-cli backup directory
+    command: "rm -rf {{ neonode_root_directory }}/neo-cli.bak"
+
+  - name: Move neo-cli directory to neo-cli.bak
+    command: "mv {{ neonode_root_directory }}/neo-cli {{ neonode_root_directory }}/neo-cli.bak"
+
+  - name: Download notification server and verify checksum
+    get_url:
+      url: "{{ neo_cli_download }}"
+      dest: "/tmp/neo-cli.tar.gz"
+      mode: 0440
+      checksum: "sha256:{{ neo_cli_checksum }}"
+      owner: "{{ project_user }}"
+      group: "{{ project_group }}"
+
+  - name: Extract notification server
+    unarchive:
+      src: "/tmp/neo-cli.tar.gz"
+      dest: "{{ neonode_root_directory }}/"
+      remote_src: yes
+      owner: "{{ project_user }}"
+      group: "{{ project_group }}"
+
+  - name: "Rename to neo-cli"
+    command: "mv {{ neonode_root_directory }}/{{ neo_cli_download_root_path }} {{ neonode_root_directory }}/neo-cli"
+
+  - name: Update config.json to serve REST API at port 10332 (so we can reuse the nginx config)
+    lineinfile:
+      path: "{{ neonode_root_directory }}/neo-cli/config.json"
+      regexp: '^(.*)"Hosts":.*80"$'
+      line: '      "Hosts": "http://0.0.0.0:10332"'
+
+  - name: Move Chain directory into new neo-cli directory
+    command: "mv {{ neonode_root_directory }}/neo-cli.bak/{{ neo_cli_chain_dir }} {{ neonode_root_directory }}/neo-cli/{{ neo_cli_chain_dir }}"
+
+  - name: Start neonode service
+    systemd:
+      name: neonode
+      state: started
+

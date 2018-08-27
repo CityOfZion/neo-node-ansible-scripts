@@ -1,5 +1,5 @@
 # Tasks to setup neo-cli. Will only be run by the node_neo_base.yml playbook if no chain exists yet, else skipped.
-- name: Download neo-cli and verify checksum
+- name: Download notification server and verify checksum
   get_url:
     url: "{{ neo_cli_download }}"
     dest: "/tmp/neo-cli.tar.gz"
@@ -8,7 +8,7 @@
     owner: "{{ project_user }}"
     group: "{{ project_group }}"
 
-- name: Extract neo-cli.zip
+- name: Extract notification server
   unarchive:
     src: "/tmp/neo-cli.tar.gz"
     dest: "{{ neonode_root_directory }}/"
@@ -17,7 +17,7 @@
     group: "{{ project_group }}"
 
 - name: "Rename to neo-cli"
-  command: "mv {{ neonode_root_directory }}/neo-cli-notifications-ubuntu-1804 {{ neonode_root_directory }}/neo-cli"
+  command: "mv {{ neonode_root_directory }}/{{ neo_cli_download_root_path }} {{ neonode_root_directory }}/neo-cli"
 
 - name: Update config.json to serve REST API at port 10332 (so we can reuse the nginx config)
   lineinfile:

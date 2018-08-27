@@ -1,5 +1,5 @@
 #
-# Update a neo-node with the new neo-cli defined in group_vars
+# Upgrade a neo-node with the new neo-cli defined in group_vars
 # The new neo-cli must be compatible with the old chain format, else needs manual upgrade.
 #
 ---
