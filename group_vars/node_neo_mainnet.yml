@@ -1,0 +1,7 @@
+neo_cli_download: https://github.com/neo-project/neo-cli/releases/download/v2.8.0/neo-cli-linux-x64.zip
+neo_cli_checksum: 533548C31279277D1B80C0278A405FEA146EDB9659B2BACFE6395FF2222A2366
+neo_cli_config_file: protocol.mainnet.json
+
+neo_bootstrap_chain_download: https://cozboot.s3-us-west-2.amazonaws.com/chain-2640xxx.tar.gz
+
+neo_cli_chain_dir: Chain_00746E41  # do not change

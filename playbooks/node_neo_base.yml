@@ -1,0 +1,78 @@
+# It is expected that the neo-cli.zip download includes a directory `neo-cli`
+---
+- hosts: node_neo
+  gather_facts: true
+  become: yes
+
+  tasks:
+  # Dotnet Setup: https://www.microsoft.com/net/download/linux-package-manager/ubuntu18-04/sdk-2.1.300
+  - name: Add Microsoft keys (Ubuntu 18.04)
+    apt:
+      deb: https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb
+    when: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '18.04'
+
+  - name: Add Microsoft keys (Ubuntu 16.04)
+    apt:
+      deb: https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb
+    when: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '16.04'
+
+  - name: Install/update apt packages
+    apt:
+      name: "{{ item }}"
+      state: latest
+      update_cache: yes
+    with_items: "{{ neonode_apt_packages }}"
+
+  - name: Ensure neonode root directory exists
+    file: path={{ neonode_root_directory }} state=directory
+
+  # Download & extract neo-cli (only if neo-cli Chain not already exists)
+  - name: Check if neo-cli MainNet chain already exists
+    stat: path="{{ neonode_root_directory }}/neo-cli/{{ neo_cli_chain_dir }}/"
+    register: chain_path
+
+  - name: Setup neo-cli
+    include: tasks/node_neo_cli.yml
+    when: not chain_path.stat.exists
+
+  - name: UFW - allow P2P ports 10333, 10334, 20333 and 20334
+  - ufw:
+      rule=allow
+      port="{{ item }}"
+    with_items:
+     - 10333
+     - 10334
+     - 20333
+     - 20334
+    when: neonode_allow_p2p
+
+  - name: ufw - reload
+    ufw: state=reloaded
+    when: neonode_allow_p2p
+
+  # Upload systemd service configuration, enable and start
+  - name: Upload systemd service configuration
+    template:
+      src: ../templates/systemd_neonode.j2
+      dest: /etc/systemd/system/neonode.service
+
+  - name: Enable and start neonode systemd service
+    systemd:
+      name: neonode
+      enabled: yes
+      daemon_reload: yes
+      state: restarted
+
+  - name: Upload block-height check script
+    copy:
+      src: ../files/check-neo-cli-blockheight.sh
+      dest: "{{ neonode_root_directory }}/check-neo-cli-blockheight.sh"
+      mode: 0755
+      owner: root
+      group: root
+
+  - name: Setup cronjob to check block-height all 10 minutes and restart node if needed
+    cron:
+      name: "Check block-height"
+      minute: "*/10"
+      job: "{{ neonode_root_directory }}/check-neo-cli-blockheight.sh"

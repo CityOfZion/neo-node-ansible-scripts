@@ -1,0 +1,46 @@
+# Tasks to setup neo-cli. Will only be run by the node_neo_base.yml playbook if no chain exists yet, else skipped.
+- name: Download neo-cli and verify checksum
+  get_url:
+    url: "{{ neo_cli_download }}"
+    dest: "/tmp/neo-cli.zip"
+    mode: 0440
+    checksum: "sha256:{{ neo_cli_checksum }}"
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"
+
+- name: Extract neo-cli.zip
+  unarchive:
+    src: "/tmp/neo-cli.zip"
+    dest: "{{ neonode_root_directory }}/"
+    remote_src: yes
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"
+
+# Copy specific protocol file
+- name: "Copy {{ neo_cli_config_file }} to protocol.json"
+  copy:
+    src: "{{ neonode_root_directory }}/neo-cli/{{ neo_cli_config_file }}"
+    dest: "{{ neonode_root_directory }}/neo-cli/protocol.json"
+    remote_src: yes
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"
+
+# Bootstrap
+- name: Downloading & extracting chain bootstrap database (~5.5G, this will take a while)
+  when: neo_bootstrap_chain_download is defined
+  unarchive:
+    src: "{{ neo_bootstrap_chain_download }}"
+    dest: "{{ neonode_root_directory }}/neo-cli/"
+    creates: "{{ neonode_root_directory }}/neo-cli/{{ neo_cli_chain_dir }}/"
+    remote_src: yes
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"
+
+# Rename the extracted Chain directory to Chain_00746E41
+- name: "Rename downloaded bootstrap Chain to {{ neo_cli_chain_dir }} (1/2)"
+  stat: path="{{ neonode_root_directory }}/neo-cli/Chain/"
+  register: chain_stat
+
+- name: "Rename downloaded bootstrap Chain to {{ neo_cli_chain_dir }} (2/2)"
+  command: "mv {{ neonode_root_directory }}/neo-cli/Chain {{ neonode_root_directory }}/neo-cli/{{ neo_cli_chain_dir }}"
+  when: chain_stat.stat.exists

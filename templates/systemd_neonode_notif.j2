@@ -1,0 +1,20 @@
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+WorkingDirectory={{ neonode_root_directory }}/neo-cli
+ExecStart=/usr/bin/dotnet neo-cli.dll -n -s
+ExecStop=/bin/kill -SIGINT `ps ax | grep neo-cli | grep -v grep | awk '{print $1}'`
+Restart=always
+TimeoutSec=5
+RestartSec=10
+StandardInput=tty-force
+TTYPath=/dev/tty2
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=neonode
+User={{ project_user }}
+Group={{ project_group }}
+
+[Install]
+WantedBy=multi-user.target

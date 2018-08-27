@@ -1,0 +1,26 @@
+neo_cli_download: https://s3.us-east-2.amazonaws.com/cityofzion/neo-cli-notifications/neo-cli-notifications-ubuntu-1804.tar.gz
+neo_cli_checksum: 92f86d35732185afe0cff97c42946fce0b4323b737022160393c0faa1a6a8b28
+
+neo_bootstrap_chain_download: https://cozboot.s3-us-west-2.amazonaws.com/chain-2640xxx.tar.gz
+neo_bootstrap_notif_download: https://cozboot.s3-us-west-2.amazonaws.com/notif-2640xxx.tar.gz
+
+neonode_root_directory: "{{ server_root }}/neonode"
+neonode_lets_encrypt_directory: "{{ neonode_root_directory }}/lets-encrypt"
+neonode_nginx_logs_directory: "{{ neonode_root_directory }}/nginx-logs"
+neo_cli_chain_dir: Chain  # do not change
+
+neonode_apt_packages:
+  - dotnet-sdk-2.1
+  - libleveldb-dev
+  - sqlite3
+  - libsqlite3-dev
+  - libunwind8-dev
+
+# Set proxy cache timeout (see https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid)
+neonode_proxy_cache_valid: 10s
+
+# Set IP rate limit according (see https://www.nginx.com/blog/rate-limiting-nginx/). To disable, set to `false`.
+neonode_ip_rate_limit: 20r/s
+
+# Set IP rate limit burst value (see https://www.nginx.com/blog/rate-limiting-nginx/#bursts). To disable, set to `false`.
+neonode_ip_rate_limit_burst: 20 nodelay

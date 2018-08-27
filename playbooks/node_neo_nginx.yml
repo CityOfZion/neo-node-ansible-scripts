@@ -1,0 +1,104 @@
+#
+# Setup nginx proxy and Let's Encrypt certificates with auto-renewals.
+# Execute after neo_node_base.yml
+#
+---
+- hosts:
+  - node_neo
+  - node_neo_notif_mainnet
+  gather_facts: false
+  become: yes
+
+  tasks:
+  - name: Install nginx apt packages
+    apt:
+      name: nginx
+      state: present
+      update_cache: yes
+
+  # Setup nginx reverse proxy
+  - name: Upload nginx config
+    template:
+      src: ../templates/nginx_neonode.j2
+      dest: /etc/nginx/conf.d/neonode.conf
+
+  - name: Remove nginx default config
+    file:
+      path: /etc/nginx/sites-enabled/default
+      state: absent
+
+  - name: Ensure nginx logs directory exists
+    file: path={{ neonode_nginx_logs_directory }} state=directory
+
+  - name: Reload nginx
+    systemd:
+      name: nginx
+      enabled: yes
+      state: reloaded
+
+  # Open ufw ports 80 + 443
+  - name: ufw - allow incoming ssh request on ports 80 and 443
+    ufw: rule=allow name="Nginx Full"
+
+  - name: ufw - reload
+    ufw: state=reloaded
+
+  # Setup let's encrypt
+  - name: "Ensure Let's Encrypt directories exist: {{ item }}"
+    file:
+      path: "{{ item }}"
+      state: directory
+    with_items:
+      - "{{ neonode_lets_encrypt_directory }}"
+      - "{{ neonode_lets_encrypt_directory }}/acme-challenge"
+
+  - name: Download lets encrypt helper "dehydrated"
+    get_url:
+      url: https://raw.githubusercontent.com/lukas2511/dehydrated/master/dehydrated
+      dest: "{{ neonode_lets_encrypt_directory }}/dehydrated"
+      mode: 0755
+
+  - name: Create dehydrated "domains.txt" file
+    copy:
+      dest: "{{ neonode_lets_encrypt_directory }}/domains.txt"
+      content: "{{ fqdn | default(inventory_hostname) }}"
+
+  - name: Create dehydrated "config" file
+    copy:
+      dest: "{{ neonode_lets_encrypt_directory }}/config"
+      content: "WELLKNOWN={{ neonode_lets_encrypt_directory }}/acme-challenge"
+
+  - name: Create and register key at lets encrypt
+    shell: ./dehydrated --register --accept-terms
+    args:
+      chdir: "{{ neonode_lets_encrypt_directory }}/"
+
+  - name: Get the lets encrypt certificate
+    shell: ./dehydrated --cron
+    args:
+      chdir: "{{ neonode_lets_encrypt_directory }}/"
+
+  - name: Upload nginx config for https
+    template:
+      src: ../templates/nginx_neonode_https.j2
+      dest: /etc/nginx/conf.d/neonode_https.conf
+
+  - name: Upload neonode nginx logrotate config
+    template:
+      src: ../templates/nginx_neonode_logrotate.j2
+      dest: /etc/logrotate.d/neonode_nginx
+
+  - name: Restart nginx
+    systemd:
+      name: nginx
+      enabled: yes
+      state: restarted
+
+  - name: Setup cronjob to renew certificates
+    cron:
+      name: "renew certificates"
+      minute: "17"
+      hour: "3"
+      day: "1"
+      month: "*"
+      job: "cd {{ neonode_lets_encrypt_directory }} && ./dehydrated --cron && systemctl restart nginx"

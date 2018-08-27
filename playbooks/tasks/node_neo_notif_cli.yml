@@ -1,0 +1,47 @@
+# Tasks to setup neo-cli. Will only be run by the node_neo_base.yml playbook if no chain exists yet, else skipped.
+- name: Download neo-cli and verify checksum
+  get_url:
+    url: "{{ neo_cli_download }}"
+    dest: "/tmp/neo-cli.tar.gz"
+    mode: 0440
+    checksum: "sha256:{{ neo_cli_checksum }}"
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"
+
+- name: Extract neo-cli.zip
+  unarchive:
+    src: "/tmp/neo-cli.tar.gz"
+    dest: "{{ neonode_root_directory }}/"
+    remote_src: yes
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"
+
+- name: "Rename to neo-cli"
+  command: "mv {{ neonode_root_directory }}/neo-cli-notifications-ubuntu-1804 {{ neonode_root_directory }}/neo-cli"
+
+- name: Update config.json to serve REST API at port 10332 (so we can reuse the nginx config)
+  lineinfile:
+    path: "{{ neonode_root_directory }}/neo-cli/config.json"
+    regexp: '^(.*)"Hosts":.*80"$'
+    line: '      "Hosts": "http://0.0.0.0:10332"'
+
+# Bootstrap
+- name: Downloading & extracting chain bootstrap database (~5.5G, this will take a while)
+  when: neo_bootstrap_chain_download is defined
+  unarchive:
+    src: "{{ neo_bootstrap_chain_download }}"
+    dest: "{{ neonode_root_directory }}/neo-cli/"
+    creates: "{{ neonode_root_directory }}/neo-cli/Chain/"
+    remote_src: yes
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"
+
+- name: Downloading & extracting notification bootstraps database (~2G, this will take while)
+  when: neo_bootstrap_notif_download is defined
+  unarchive:
+    src: "{{ neo_bootstrap_notif_download }}"
+    dest: "{{ neonode_root_directory }}/neo-cli/"
+    creates: "{{ neonode_root_directory }}/neo-cli/Notifications/"
+    remote_src: yes
+    owner: "{{ project_user }}"
+    group: "{{ project_group }}"

@@ -1,0 +1,88 @@
+#
+# - Proxy from host port 443 to inside port 10332
+# - 10 sec caching on requests with response status code 200
+#
+# To test that the caching works as expected, i recommend to proxy to a a simple
+# test http server like that: https://gist.github.com/mdonkers/63e115cc0c79b4f6b8b3a6b797e485c7
+#
+# nginx docs for caching:
+#
+# - https://serversforhackers.com/c/nginx-caching
+# - https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_path
+# - https://docs.nginx.com/nginx/admin-guide/content-cache/content-caching/
+# - https://www.nginx.com/blog/nginx-caching-guide/
+#
+proxy_cache_path /tmp/nginx-cache levels=1:2 keys_zone=cache_one:500m;
+proxy_cache_key "$scheme$request_method$host$request_uri";
+
+{% if neonode_ip_rate_limit %}
+# Rate limit per IP address. nginx docs: https://www.nginx.com/blog/rate-limiting-nginx/
+limit_req_zone $binary_remote_addr zone=limit_ip_one:100m rate={{ neonode_ip_rate_limit }};
+{% endif %}
+
+server {
+    listen 443 ssl http2 default_server;
+    server_name _;
+
+    access_log {{ neonode_nginx_logs_directory }}/access_https.log;
+    error_log {{ neonode_nginx_logs_directory }}/error_https.log;
+
+    ssl_session_timeout 1d;
+    ssl_protocols TLSv1.1 TLSv1.2;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA;
+
+    ssl_session_cache shared:SSL:50m;
+    ssl_ecdh_curve secp384r1;
+    ssl_session_tickets off;
+
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Xss-Protection "1; mode=block" always;
+
+    add_header 'Access-Control-Allow-Origin' '*';
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+    add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+    add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+
+    ssl_certificate     {{ neonode_lets_encrypt_directory }}/certs/{{ fqdn | default(inventory_hostname) }}/fullchain.pem;
+    ssl_certificate_key {{ neonode_lets_encrypt_directory }}/certs/{{ fqdn | default(inventory_hostname) }}/privkey.pem;
+
+    proxy_connect_timeout       600;
+    proxy_send_timeout          600;
+    proxy_read_timeout          600;
+    send_timeout                600;
+
+    client_max_body_size 2m;
+    client_body_buffer_size 2m;
+
+    location / {
+    {% if neonode_ip_rate_limit %}
+        # Enable per-IP rate limits
+        {% if neonode_ip_rate_limit_burst %}
+        limit_req zone=limit_ip_one burst={{ neonode_ip_rate_limit_burst }};
+        {% else %}
+        limit_req zone=limit_ip_one;
+        {% endif %}
+    {% endif %}
+
+        # Enable JSON-RPC Caching: 10 seconds based on JSON-RPC POST request content
+        proxy_cache cache_one;
+        proxy_cache_methods GET POST;
+        proxy_cache_key "$scheme$request_method$proxy_host$uri$is_args$args|$request_body";
+        proxy_cache_valid {{ neonode_proxy_cache_valid }};  # only 200, 301, and 302 responses are cached
+
+        # Proxy settings
+        proxy_pass http://127.0.0.1:10332;
+        proxy_set_header    Host            $host;
+        proxy_set_header    X-Real-IP       $remote_addr;
+        proxy_set_header    X-Forwarded-for $remote_addr;
+        port_in_redirect off;
+        proxy_redirect off;
+        proxy_connect_timeout 300;
+    }
+}

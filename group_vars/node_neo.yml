@@ -1,0 +1,22 @@
+neonode_root_directory: "{{ server_root }}/neonode"
+neonode_lets_encrypt_directory: "{{ neonode_root_directory }}/lets-encrypt"
+neonode_nginx_logs_directory: "{{ neonode_root_directory }}/nginx-logs"
+
+neonode_apt_packages:
+  - dotnet-sdk-2.1
+  - libleveldb-dev
+  - sqlite3
+  - libsqlite3-dev
+  - libunwind8-dev
+
+# Open P2P ports on firewall:
+neonode_allow_p2p: false
+
+# Set proxy cache timeout (see https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache_valid)
+neonode_proxy_cache_valid: 10s
+
+# Set IP rate limit according (see https://www.nginx.com/blog/rate-limiting-nginx/). To disable, set to `false`.
+neonode_ip_rate_limit: 70r/s
+
+# Set IP rate limit burst value (see https://www.nginx.com/blog/rate-limiting-nginx/#bursts). To disable, set to `false`.
+neonode_ip_rate_limit_burst: 70 nodelay

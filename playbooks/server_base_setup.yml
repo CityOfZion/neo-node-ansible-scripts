@@ -1,0 +1,88 @@
+---
+- hosts: all
+  gather_facts: false
+  become: yes
+
+  tasks:
+  #
+  # Create user, group and base directory
+  #
+  - name: Create user
+    user: name={{ project_user }} state=present shell=/bin/bash
+
+  - name: Create group
+    group: name={{ project_group }} state=present
+
+  - name: Create the server directory
+    file: path={{ server_root }} state=directory owner={{ project_user }} mode=755
+
+  - name: Update permissions of project root directory
+    file: path={{ server_root }} state=directory owner={{ project_user }} group={{ project_group }} mode=755
+
+  #
+  # Set UTC timezone
+  #
+  - name: Set timezone to UTC
+    timezone: name=Etc/UTC
+
+  #
+  # Install packages and update all system packages
+  #
+  - name: Update apt cache if needed
+    apt: update_cache=yes cache_valid_time=3600
+
+  - name: Install required system packages
+    apt: name={{ item }} state=present
+    with_items: "{{ apt_packages }}"
+
+  - name: Upgrade all packages to the latest version
+    apt:
+      name: "*"
+      state: latest
+      force_apt_get: yes
+
+  #
+  # Unattended Updates
+  #
+  - name: Enable unattended updates (1/2)
+    copy:
+      src: ../files/apt.conf.d_10periodic
+      dest: /etc/apt/apt.conf.d/10periodic
+      mode: 0644
+      owner: root
+      group: root
+
+  - name: Enable unattended updates (2/2)
+    copy:
+      src: ../files/apt.conf.d_50unattended-upgrades
+      dest: /etc/apt/apt.conf.d/50unattended-upgrades
+      mode: 0644
+      owner: root
+      group: root
+
+  #
+  # Firewall setup
+  #
+  - name: ufw - allow incoming ssh request on firewall
+    ufw: rule=allow name=OpenSSH
+
+  - name: ufw - default policy for firewall (outgoing=allow)
+    ufw: direction=outgoing policy=allow
+
+  - name: ufw - default policy for firewall (incoming=deny)
+    ufw: direction=incoming policy=deny
+
+  - name: ufw - ensure firewall is running
+    ufw: state=enabled
+
+  #
+  # SSH setup
+  #
+  - name: Configure sshd (disable root login)
+    lineinfile: dest=/etc/ssh/sshd_config regexp="^PermitRootLogin" line="PermitRootLogin no" state=present
+
+  - name: Configure sshd (disable password authentication)
+    lineinfile: dest=/etc/ssh/sshd_config regexp="^PasswordAuthentication" line="PasswordAuthentication no" state=present
+
+  - name: Reload sshd
+    service: name=ssh state=reloaded

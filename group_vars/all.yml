@@ -1,0 +1,16 @@
+project_user: node
+project_group: node
+server_root: /server
+
+apt_packages:
+  - git-core
+  - telnet
+  - ufw
+  - unattended-upgrades
+  - fail2ban
+  - locales
+  - htop
+  - iotop
+  - logwatch
+  - unzip
+  - apt-transport-https
