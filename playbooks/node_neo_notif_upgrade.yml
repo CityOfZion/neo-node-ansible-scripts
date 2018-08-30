@@ -49,6 +49,9 @@
   - name: Move Chain directory into new neo-cli directory
     command: "mv {{ neonode_root_directory }}/neo-cli.bak/{{ neo_cli_chain_dir }} {{ neonode_root_directory }}/neo-cli/{{ neo_cli_chain_dir }}"
 
+  - name: Move Notifications directory into new neo-cli directory
+    command: "mv {{ neonode_root_directory }}/neo-cli.bak/Notifications {{ neonode_root_directory }}/neo-cli/Notifications"
+
   - name: Start neonode service
     systemd:
       name: neonode
