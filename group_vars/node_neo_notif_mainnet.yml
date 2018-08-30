@@ -2,8 +2,8 @@ neo_cli_download: https://s3.us-east-2.amazonaws.com/cityofzion/neo-cli-notifica
 neo_cli_checksum: 2a696e27ce707db549f9ec589a2981593d619e7353952140580b4170d4406f9b
 neo_cli_download_root_path: neo-cli-notifications-08-24-18  # root project path inside the downloaded file
 
-neo_bootstrap_chain_download: https://cozboot.s3-us-west-2.amazonaws.com/chain-2640xxx.tar.gz
-neo_bootstrap_notif_download: https://cozboot.s3-us-west-2.amazonaws.com/notif-2640xxx.tar.gz
+neo_bootstrap_chain_download: https://s3.us-east-2.amazonaws.com/cityofzion/chain-2675xxx.tar.gz
+neo_bootstrap_notif_download: https://s3.us-east-2.amazonaws.com/cityofzion/notif-2675xxx.tar.gz
 
 neonode_root_directory: "{{ server_root }}/neonode"
 neonode_lets_encrypt_directory: "{{ neonode_root_directory }}/lets-encrypt"
